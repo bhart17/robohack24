@@ -6,14 +6,13 @@ markers = robot.camera.see()
 
 # assuming closest markers show up first?
 
-if markers[0] == 0 or markers[0] == 1:
-    marker_ref = markers[0]
-    marker_ref_id = markers[0].id
-    while (fixAngle(marker_ref) == False or fixDirection(marker_ref) == False):
-        while (fixAngle(marker_ref) == False):
-            marker_ref = rescan(marker_ref)
-        while (fixDirection(marker_ref) == False:
-            marker_ref = rescan(marker_ref)
+marker_ref = markers[0]
+marker_ref_id = markers[0].id
+while (fixAngle(marker_ref) == False or fixDirection(marker_ref) == False):
+    while (fixAngle(marker_ref) == False):
+        marker_ref = rescan(marker_ref)
+    while (fixDirection(marker_ref) == False:
+        marker_ref = rescan(marker_ref)
 
 
 def fixAngle(marker):
