@@ -1,73 +1,85 @@
 from sbot import Robot
-from sbot import GPIOPinMode
-from sbot import AnalogPins
 import time
+import RPi.GPIO as gpio
 
 robot = Robot()
 
 motors = robot.motor_board.motors
+servos = robot.servo_board.servos
 
-my_arduino = robot.arduino
+#servos
+claw_l = servos[0]
+claw_r = servos[1]
+lift_l = servos[2]
+lift_r = servos[3]
 
-# Motors and constants
-lmotor = motors[1]
-rmotor = motors[0]
-left_scalar = -1
-right_scalar = 1
-motor_slow = 0.05
-motor_norm = 0.2
-motor_fast = 0.3
+# pins
+can = 20
 
-#high on white low on black
+# setup gpio
+gpio.setmode(gpio.BCM)
+gpio.setup(can, gpio.IN)
+gpio.setup(16, gpio.OUT)
+gpio.output(16, 1)
 
-#left line following sensor
-rightSensor = AnalogPins.A0
-#right line following sensor
-leftSensor = AnalogPins.A1
 
-my_arduino.pins[rightSensor].mode = GPIOPinMode.INPUT
-my_arduino.pins[leftSensor].mode = GPIOPinMode.INPUT
+def stop():
+    motors[0].power = 0
+    motors[1].power = 0
 
-threshold = 0.1
+def drive(power, duration):
+    motors[0].power = power * 0.96
+    motors[1].power = -power
+    robot.sleep(duration)
+    stop()
 
-state = (0,0) # States are defines as (0,1) where L and R = {0,1} for {black,white}
-last_turn = 0 # 0 = L, 1 = R
+def turn(power, duration):
+    motors[0].power = power
+    motors[1].power = power
+    robot.sleep(duration)
+    stop()
 
-while True:
-    left_reading = my_arduino.pins[leftSensor].analog_value
-    right_reading = my_arduino.pins[rightSensor].analog_value / 10
+def claw_open():
+    # open
+    claw_l.position = -0.2
+    claw_r.position = 0.2
+
+def claw_half_open():
+    claw_l.position = 0.2
+    claw_r.position = -0.2
+
+def claw_close():
+    # close
+    claw_l.position = 1
+    claw_r.position = -1
+
+def claw_up():
+    # up
+    lift_l.position = 0.8
+    lift_r.position = -0.8
+
+def claw_down():
+    # down
+    lift_l.position = -1
+    lift_r.position = 1
+
+claw_down()
+claw_open()
+#drive around 2m
+drive(0.4, 3.7)
+#pick up a can
+if (gpio.input(can) == 1):
+    claw_close()
+    robot.sleep(1)
+    claw_up()
+    robot.sleep(2)
+    claw_half_open()
+    robot.sleep(2)
+    claw_down()
+    robot.sleep(1)
+    claw_open()
+#turn left a bit
+turn(0.2, 0.8)
+#drive again
+drive(0.4, 2)
     
-    print("Left:", left_reading)
-    print("Right:", right_reading)
-    
-    l = left_reading > threshold
-    r = right_reading > threshold
-    
-    if(not l and not r):
-        # go straight
-        lmotor.power = left_scalar * motor_fast
-        rmotor.power = right_scalar * motor_fast
-    elif(l and not r):
-        # turn right
-        lmotor.power = left_scalar * motor_fast
-        rmotor.power = right_scalar * motor_norm
-        last_turn = 1
-    elif(not l and r):
-        # turn left
-        lmotor.power = left_scalar * motor_norm
-        rmotor.power = right_scalar * motor_fast
-        last_turn = 0
-    else:
-        # turn aggressively
-        if(last_turn == 1):
-            # turn right aggressive
-            lmotor.power = left_scalar * motor_fast
-            rmotor.power = right_scalar * motor_slow
-            last_turn = 1
-        else:
-            # turn left aggressive
-            lmotor.power = left_scalar * motor_norm
-            rmotor.power = right_scalar * motor_fast
-            last_turn = 0
-    
-    #time.sleep(0.001)
