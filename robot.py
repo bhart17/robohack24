@@ -9,23 +9,14 @@ motors = robot.motor_board.motors
 
 my_arduino = robot.arduino
 
-def stop():
-    motors[0].power = 0
-    motors[1].power = 0
-
-def drive(power, duration):
-    motors[0].power = power
-    motors[1].power = -power
-    robot.sleep(duration)
-    stop()
-
-def turn(power, duration):
-    motors[0].power = power
-    motors[1].power = power
-    robot.sleep(duration)
-    stop()
-
-
+# Motors and constants
+lmotor = motors[1]
+rmotor = motors[0]
+left_scalar = -1
+right_scalar = 1
+motor_slow = 0.05
+motor_norm = 0.2
+motor_fast = 0.3
 
 #high on white low on black
 
@@ -39,23 +30,44 @@ my_arduino.pins[leftSensor].mode = GPIOPinMode.INPUT
 
 threshold = 0.1
 
+state = (0,0) # States are defines as (0,1) where L and R = {0,1} for {black,white}
+last_turn = 0 # 0 = L, 1 = R
+
 while True:
     left_reading = my_arduino.pins[leftSensor].analog_value
     right_reading = my_arduino.pins[rightSensor].analog_value / 10
     
-    print("Left:")
-    print(left_reading)
-    print("Right:")
-    print(right_reading)
-
-    if (left_reading > threshold):
-        #turn right a bit
-        turn(-0.1, 0.01)
-    elif (right_reading > threshold):
-        #turn left a bit
-        turn(0.1, 0.01)
+    print("Left:", left_reading)
+    print("Right:", right_reading)
+    
+    l = left_reading > threshold
+    r = right_reading > threshold
+    
+    if(not l and not r):
+        # go straight
+        lmotor.power = left_scalar * motor_fast
+        rmotor.power = right_scalar * motor_fast
+    elif(l and not r):
+        # turn right
+        lmotor.power = left_scalar * motor_fast
+        rmotor.power = right_scalar * motor_norm
+        last_turn = 1
+    elif(not l and r):
+        # turn left
+        lmotor.power = left_scalar * motor_norm
+        rmotor.power = right_scalar * motor_fast
+        last_turn = 0
     else:
-        #keep going straight
-        drive(0.2, 0.3)
+        # turn aggressively
+        if(last_turn == 1):
+            # turn right aggressive
+            lmotor.power = left_scalar * motor_fast
+            rmotor.power = right_scalar * motor_slow
+            last_turn = 1
+        else:
+            # turn left aggressive
+            lmotor.power = left_scalar * motor_norm
+            rmotor.power = right_scalar * motor_fast
+            last_turn = 0
     
     #time.sleep(0.001)
